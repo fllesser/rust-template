@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    name: Release - ${{ matrix.platform.os-name }}
+    environment: release
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        platform:
+          # - os-name: FreeBSD-x86_64
+          #   runs-on: ubuntu-24.04
+          #   target: x86_64-unknown-freebsd
+
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-24.04
+            target: aarch64-unknown-linux-musl
+
+          - os-name: Linux-riscv64
+            runs-on: ubuntu-24.04
+            target: riscv64gc-unknown-linux-gnu
+
+          - os-name: Windows-x86_64
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
+
+          - os-name: macOS-x86_64
+            runs-on: macOS-latest
+            target: x86_64-apple-darwin
+
+          - os-name: macOS-aarch64
+            runs-on: macOS-latest
+            target: aarch64-apple-darwin
+
+          # more targets here ...
+
+    runs-on: ${{ matrix.platform.runs-on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Get Version
+        id: version
+        run: |
+          echo "VERSION=$(grep -E '^version\s*=\s*"[^"]+"' Cargo.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> $GITHUB_OUTPUT
+          echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Check Version
+        if: steps.version.outputs.VERSION != steps.version.outputs.TAG_VERSION
+        run: exit 1
+
+      - name: Get binary name or Package name
+        id: name
+        run: |
+          BINARY_NAME=$(grep -A 2 '^\[\[bin\]\]' Cargo.toml | grep -E '^name\s*=\s*"[^"]+"' | grep -oE '[a-zA-Z0-9_-]+' | tail -1)
+          if [ -z "$BINARY_NAME" ]; then
+            BINARY_NAME=$(grep -A 2 '^\[package\]' Cargo.toml | grep -E '^name\s*=\s*"[^"]+"' | grep -oE '[a-zA-Z0-9_-]+' | tail -1)
+          fi
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_OUTPUT
+
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: "--locked --release"
+          strip: true
+          
+      - name: Publish artifacts and release
+        uses: houseabsolute/actions-rust-release@v0
+        with:
+          executable-name: ${{ steps.name.outputs.BINARY_NAME }}
+          # 添加 tag 到 target
+          target: ${{ matrix.platform.target }}
