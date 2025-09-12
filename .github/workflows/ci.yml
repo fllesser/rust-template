@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: crate-ci/typos@master
+
+  lint:
+    name: "lint"
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: "Install Rustfmt"
+        run: rustup component add rustfmt
+      - name: "rustfmt"
+        run: cargo fmt --all --check
+
+  cargo-clippy-linux:
+    name: "cargo clippy | ubuntu"
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: rui314/setup-mold@v1
+      - uses: Swatinem/rust-cache@v2.8.0
+
+      - name: "Install Rust toolchain"
+        run: rustup component add clippy
+      - name: "Clippy"
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+  cargo-clippy-windows:
+    timeout-minutes: 15
+    runs-on: windows-latest
+    name: "cargo clippy | windows"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Swatinem/rust-cache@v2.8.0
+
+      - name: "Install Rust toolchain"
+        run: rustup component add clippy
+
+      - name: "Clippy"
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+  cargo-shear:
+    name: "cargo shear"
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5 # v5
+      - uses: cargo-bins/cargo-binstall@main
+      - run: cargo binstall --no-confirm cargo-shear
+      - run: cargo shear
+
+  cargo-test-linux:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    name: "cargo test | ubuntu"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: rui314/setup-mold@v1
+      - uses: Swatinem/rust-cache@v2.8.0
+
+      - name: "Install Rust toolchain"
+        run: rustup show
+
+      - name: "Install cargo nextest"
+        uses: taiki-e/install-action@v2.60.0
+        with:
+          tool: cargo-nextest
+
+      - name: "Install cargo-llvm-cov"
+        uses: taiki-e/install-action@v2.60.0
+        with:
+          tool: cargo-llvm-cov
+
+      - name: "Cargo test"
+        run: |
+          cargo llvm-cov nextest \
+            --no-report \
+            --workspace \
+            --status-level skip --failure-output immediate --no-fail-fast -j 8 --final-status-level slow
+
+          cargo llvm-cov report --lcov --output-path lcov.info
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5.5.1
+        with:
+          files: lcov.info
+          use_oidc: true
+
+  cargo-test-macos:
+    timeout-minutes: 10
+    runs-on: macos-latest
+    name: "cargo test | macos"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rui314/setup-mold@v1
+
+      - uses: Swatinem/rust-cache@v2.8.0
+
+      - name: "Install Rust toolchain"
+        run: rustup show
+
+      - name: "Install cargo nextest"
+        uses: taiki-e/install-action@v2.60.0
+        with:
+          tool: cargo-nextest
+
+      - name: "Cargo test"
+        run: |
+          cargo nextest show-config test-groups
+          cargo nextest run \
+            --workspace \
+            --status-level skip --failure-output immediate --no-fail-fast -j 8 --final-status-level slow
+
+
+  cargo-test-windows:
+    timeout-minutes: 15
+    runs-on: windows-latest
+    name: "cargo test | windows"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Swatinem/rust-cache@v2.8.0
+
+      - name: "Install Rust toolchain"
+        run: rustup show
+
+      - name: "Install cargo nextest"
+        uses: taiki-e/install-action@v2.60.0
+        with:
+          tool: cargo-nextest
+
+      - name: "Cargo test"
+        run: |
+          cargo nextest show-config test-groups
+          cargo nextest run --workspace --status-level skip --failure-output immediate --no-fail-fast -j 8 --final-status-level slow
