@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
 
       - name: "Install Rust toolchain"
         run: rustup component add clippy
@@ -51,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
 
       - name: "Install Rust toolchain"
         run: rustup component add clippy
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
 
       - name: "Install Rust toolchain"
         run: rustup show
@@ -117,7 +117,7 @@ jobs:
 
       - uses: rui314/setup-mold@v1
 
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
 
       - name: "Install Rust toolchain"
         run: rustup show
@@ -142,7 +142,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
 
       - name: "Install Rust toolchain"
         run: rustup show
